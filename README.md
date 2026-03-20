@@ -1,6 +1,6 @@
 # 🧠 Symphony Cortex - WIP
 
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/6060eefd-c38f-42bc-a387-ced219473afe" />
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/f4a21db0-bf4d-4cf8-ab57-7455b9dd2451" />
 
 
 **One database. One protocol. Every AI tool you use.**
