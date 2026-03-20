@@ -1,5 +1,8 @@
 # 🧠 Symphony Cortex - WIP
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/6060eefd-c38f-42bc-a387-ced219473afe" />
+
+
 **One database. One protocol. Every AI tool you use.**
 
 Symphony Cortex is a self-hosted knowledge system that gives you a single, portable memory layer across *all* your AI tools — Claude, ChatGPT, Cursor, Copilot, whatever ships next month. It uses [MCP (Model Context Protocol)](https://modelcontextprotocol.io) to expose your accumulated context through one open standard.
