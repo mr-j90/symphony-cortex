@@ -270,4 +270,4 @@ MIT — use it however you want, keep your knowledge yours.
 
 ---
 
-**Built by [Jordan](https://github.com/YOUR_USERNAME)** — part of the [Symphony](https://gosymphony.ai) ecosystem. Engineering manager, AI tooling builder, and believer that your context shouldn't be rented from a platform.
+**Built by [Jordan](https://github.com/mrj-90)** — part of the [Symphony](https://gosymphony.ai) ecosystem. Engineering manager, AI tooling builder, and believer that your context shouldn't be rented from a platform.
