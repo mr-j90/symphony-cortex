@@ -2,7 +2,6 @@
 
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/f4a21db0-bf4d-4cf8-ab57-7455b9dd2451" />
 
-
 **One database. One protocol. Every AI tool you use.**
 
 Symphony Cortex is a self-hosted knowledge system that gives you a single, portable memory layer across *all* your AI tools — Claude, ChatGPT, Cursor, Copilot, whatever ships next month. It uses [MCP (Model Context Protocol)](https://modelcontextprotocol.io) to expose your accumulated context through one open standard.
@@ -27,28 +26,32 @@ Your note-taking apps weren't built for this either. Notion, Obsidian, and Apple
 
 ## The Solution
 
-Symphony Cortex is a single Postgres database with pgvector, fronted by an MCP server. That's it.
+Symphony Cortex is a containerized API — a Postgres database with pgvector and an MCP-compatible server, deployed as a single Docker stack. You run it once, point your tools at it, and forget about it. Your AI tools are the ones calling Cortex, not you.
 
 ```
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
 │    Claude     │   │   ChatGPT    │   │    Cursor    │
-│  (MCP native) │   │ (via plugin) │   │  (MCP native) │
+│              │   │              │   │              │
 └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
        │                  │                  │
+       │          MCP / REST API             │
        └──────────┬───────┴──────────┬───────┘
                   │                  │
-            ┌─────▼──────────────────▼─────┐
-            │      Symphony Cortex MCP Server    │
-            │   (search, store, classify)   │
-            └─────────────┬────────────────┘
-                          │
-            ┌─────────────▼────────────────┐
-            │   Postgres + pgvector         │
-            │   (your knowledge, embedded)  │
-            └──────────────────────────────┘
+       ┌──────────▼──────────────────▼──────────┐
+       │         🐳 Docker Container            │
+       │  ┌───────────────────────────────────┐ │
+       │  │   Symphony Cortex API Server      │ │
+       │  │   (MCP + REST • store • search)   │ │
+       │  └───────────────┬───────────────────┘ │
+       │                  │                     │
+       │  ┌───────────────▼───────────────────┐ │
+       │  │   Postgres + pgvector             │ │
+       │  │   (your knowledge, embedded)      │ │
+       │  └───────────────────────────────────┘ │
+       └────────────────────────────────────────┘
 ```
 
-Every AI you connect sees the same context. Switch tools whenever you want. Your knowledge stays yours.
+You deploy the container. Your AI tools connect to it. Every tool sees the same knowledge. Switch tools whenever you want — your context stays yours.
 
 ## What You Get
 
@@ -58,13 +61,12 @@ Every AI you connect sees the same context. Switch tools whenever you want. Your
 - **Full ownership** — your data lives in a Postgres instance you control
 - **Compound returns** — the system gets more valuable every day you use it, independent of any vendor
 
-## Quick Start (≈45 minutes, no coding required)
+## Quick Start (≈15 minutes)
 
 ### Prerequisites
 
 - Docker and Docker Compose
 - An embedding API key ([OpenAI](https://platform.openai.com), [OpenRouter](https://openrouter.ai), or local via Ollama)
-- At least one MCP-compatible AI tool (Claude Desktop, Cursor, etc.)
 
 ### 1. Clone and configure
 
@@ -79,7 +81,7 @@ Edit `.env` with your preferred settings:
 ```env
 POSTGRES_PASSWORD=your_secure_password
 EMBEDDING_PROVIDER=openai          # "openai", "openrouter", or "local" (ollama)
-MCP_SERVER_PORT=3100
+CORTEX_PORT=3100                   # port the API listens on
 
 # --- Provider keys (only set the one you're using) ---
 OPENAI_API_KEY=sk-...              # if using openai
@@ -87,53 +89,78 @@ OPENROUTER_API_KEY=sk-or-...       # if using openrouter
 OPENROUTER_MODEL=openai/text-embedding-3-small  # optional, defaults shown
 ```
 
-### 2. Start the stack
+### 2. Deploy
 
 ```bash
 docker compose up -d
 ```
 
-This spins up:
-- Postgres with pgvector extension
-- The Symphony Cortex MCP server
-- (Optional) Ollama for local embeddings
+That's it. Cortex is now running at `http://localhost:3100`. Two containers, one command:
 
-### 3. Connect your first AI tool
+- **symphony-cortex-api** — the MCP + REST server
+- **symphony-cortex-db** — Postgres with pgvector
 
-**Claude Desktop** — Add to your `claude_desktop_config.json`:
+### 3. Connect your AI tools
+
+Cortex exposes both an **MCP endpoint** (for MCP-native tools) and a **REST API** (for everything else).
+
+**MCP tools (Claude Desktop, Cursor, Claude Code, etc.):**
+
+Add to your MCP config:
 
 ```json
 {
   "mcpServers": {
     "symphony-cortex": {
-      "command": "npx",
-      "args": ["-y", "symphony-cortex-mcp"],
-      "env": {
-        "DATABASE_URL": "postgresql://localhost:5432/symphony_cortex"
-      }
+      "url": "http://localhost:3100/mcp"
     }
   }
 }
 ```
 
-**Cursor** — Add the same MCP config in Cursor's settings under MCP Servers.
+**REST API (ChatGPT plugins, custom agents, scripts, etc.):**
+
+```bash
+# Store a memory
+curl -X POST http://localhost:3100/api/entries \
+  -H "Content-Type: application/json" \
+  -d '{"content": "I prefer TypeScript for backends and Vue/Nuxt for frontend work."}'
+
+# Search by meaning
+curl http://localhost:3100/api/search?q=language+preferences
+```
 
 ### 4. Verify it works
 
-In Claude Desktop or your connected tool, try:
+Store something from one tool:
 
 ```
-Store this in my Symphony Cortex: I prefer TypeScript for backend services
+Store this in Cortex: I prefer TypeScript for backend services
   and Vue/Nuxt for frontend work.
 ```
 
-Then in a *different* tool:
+Search from a *different* tool:
 
 ```
-Search my Symphony Cortex for my language preferences.
+Search Cortex for my language preferences.
 ```
 
 If the second tool returns your preference, you're live.
+
+### 5. Deploy remotely (optional)
+
+To run Cortex on a home server, VPS, or always-on machine so all your devices can reach it:
+
+```bash
+# On your server
+docker compose up -d
+
+# From your tools, point to the server's IP/hostname
+# MCP: "url": "http://your-server:3100/mcp"
+# REST: http://your-server:3100/api/...
+```
+
+For production, put it behind a reverse proxy (Caddy, nginx) with HTTPS and add an API key for auth. See the [deployment guide](./docs/deployment.md) for details.
 
 ---
 
@@ -173,12 +200,14 @@ All prompts are in the [`/prompts`](./prompts) directory.
 
 ```
 symphony-cortex/
-├── docker-compose.yml        # Full stack: Postgres, MCP server, (optional) Ollama
-├── mcp-server/
+├── docker-compose.yml        # Full stack: API server + Postgres
+├── Dockerfile                # Multi-stage build for the API server
+├── api/
 │   ├── src/
-│   │   ├── index.ts          # MCP server entry point
-│   │   ├── tools/            # MCP tool definitions (store, search, classify)
-│   │   ├── embeddings/       # Embedding provider abstraction
+│   │   ├── index.ts          # Server entry point (MCP + REST)
+│   │   ├── mcp/              # MCP protocol handler and tool definitions
+│   │   ├── rest/             # REST API routes (/api/entries, /api/search)
+│   │   ├── embeddings/       # Embedding provider abstraction (OpenAI, OpenRouter, Ollama)
 │   │   └── db/               # Postgres/pgvector queries
 │   └── package.json
 ├── prompts/
@@ -188,11 +217,17 @@ symphony-cortex/
 │   └── 04-weekly-review.md
 ├── sql/
 │   └── init.sql              # Schema: entries, embeddings, tags
+├── docs/
+│   └── deployment.md         # Production deployment guide
 ├── .env.example
 └── README.md
 ```
 
-### MCP Tools Exposed
+### API Surface
+
+Cortex exposes the same capabilities through two interfaces:
+
+**MCP Tools** (for AI tools that speak MCP natively):
 
 | Tool | Description |
 |---|---|
@@ -202,6 +237,17 @@ symphony-cortex/
 | `get_entry` | Retrieve a specific entry by ID |
 | `delete_entry` | Remove an entry |
 | `weekly_digest` | Generate a summary of recent captures |
+
+**REST Endpoints** (for everything else):
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/entries` | Store a new entry |
+| `GET` | `/api/search?q=...` | Semantic search |
+| `GET` | `/api/entries/:id` | Get a specific entry |
+| `DELETE` | `/api/entries/:id` | Delete an entry |
+| `GET` | `/api/tags` | List all tags |
+| `GET` | `/api/digest?days=7` | Weekly digest |
 
 ### Data Model
 
@@ -244,15 +290,19 @@ If you run it on a machine you already have (home server, Mac Mini, always-on de
 
 ## Roadmap
 
-- [x] Core MCP server with store/search/classify
+- [x] Containerized API server (MCP + REST)
+- [x] Docker Compose one-command deployment
+- [x] OpenAI and OpenRouter embedding support
 - [x] Prompt kit (migration, spark, capture, review)
-- [x] Docker Compose one-command setup
-- [ ] Ollama embedding provider for fully local operation
+- [ ] Ollama embedding provider for fully local/offline operation
+- [ ] API key authentication for remote deployments
 - [ ] Web UI for browsing and managing entries
 - [ ] Bulk import from Notion, Obsidian, Apple Notes
 - [ ] Multi-user support with namespaced entries
-- [ ] Automatic capture via Slack integration
+- [ ] Automatic capture via Slack/webhook integration
 - [ ] Scheduled weekly review delivery (email/Slack)
+- [ ] Re-embed utility for migrating between embedding providers
+- [ ] Pre-built Docker images on Docker Hub / GHCR
 
 ---
 
@@ -272,5 +322,4 @@ Areas where help is especially useful:
 MIT — use it however you want, keep your knowledge yours.
 
 ---
-
 **Built by [Jordan](https://github.com/mrj-90)** — part of the [Symphony](https://gosymphony.ai) ecosystem. Engineering manager, AI tooling builder, and believer that your context shouldn't be rented from a platform.
