@@ -1,4 +1,4 @@
-# 🧠 Symphony Cortex
+# 🧠 Symphony Cortex - WIP
 
 **One database. One protocol. Every AI tool you use.**
 
